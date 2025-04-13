@@ -4,24 +4,23 @@ from ray.tune import RunConfig
 from ray.tune.callback import Callback
 from ray.rllib.algorithms.dqn import DQNConfig
 from custom_env.grid_env import GridEnv
-import os
 
-# Register custom environment
+# Register the custom environment
 tune.register_env("CustomGrid-v0", lambda cfg: GridEnv(**cfg))
 
 # Initialize Ray
 ray.init()
 
-# DQN config with compatible keys
+# Define DQN configuration using the new API
 config = (
     DQNConfig()
     .environment("CustomGrid-v0", env_config={"grid_size": 5})
-    .framework("torch")
+    .env_runners(num_env_runners=1)
     .training(
-        lr=0.0005,
-        train_batch_size=64,
+        train_batch_size_per_learner=128,
+        lr=0.0001,
     )
-    .exploration(explore=True)
+    .framework("torch")
 )
 
 # Reward logger
@@ -32,7 +31,7 @@ class RewardLogger(Callback):
             with open("dqn_rewards.txt", "a") as f:
                 f.write(f"{rewards}\n")
 
-# Run DQN training
+# Launch training with Tuner
 tuner = tune.Tuner(
     "DQN",
     param_space=config,
@@ -43,6 +42,5 @@ tuner = tune.Tuner(
     ),
 )
 
-# Launch training
 tuner.fit()
 print("DQN training finished.")
